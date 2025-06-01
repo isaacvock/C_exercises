@@ -1,19 +1,32 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
+#include <errno.h>
+#include <stdint.h>
 
-#define MAX_READ_LEN 300
-#define MAX_QNAME_LEN 100 
 
 typedef struct{
     size_t read_len;
-    char seq[MAX_READ_LEN + 1];
-    char qualities[MAX_READ_LEN + 1];
-    char name[MAX_QNAME_LEN + 1];
+    char *seq;
+    char *qualities;
+    char *name;
 } fastq_entry;
 
 
 int main(int argc, char *argv[]){
+
+
+    /* Make sure correct number of arguments */
+    if (argc != 3){
+        fprintf(stderr,
+        "Usage: %s <fastq file> <num_reads> \n"
+        " <fastq file> : path to a .fastq or .fq file\n"
+        " <num_reads> : positive integer (how many reads to parse)\n",
+        argv[0]
+        );
+        return EXIT_FAILURE;
+    }
 
     /* Open file */
 
@@ -32,6 +45,19 @@ int main(int argc, char *argv[]){
 
     char *endptr = NULL;
     unsigned long long tmp = strtoull(argv[2], &endptr, 10);
+
+    errno = 0;
+
+    if (errno == ERANGE ||           /* out of range for unsigned long long */
+        *endptr != '\0' ||           /* trailing junk like "123abc"         */
+        tmp == 0) {                  /* 0 is not a sensible read count      */
+        fprintf(stderr,
+                "Error: <num_reads> must be a positive integer between 1 and %zu\n",
+                SIZE_MAX);
+        return EXIT_FAILURE;
+    }
+
+
     size_t num_reads = (size_t)tmp;
 
     /* Parse fastq entries */
@@ -39,70 +65,79 @@ int main(int argc, char *argv[]){
 
     fastqs = malloc(num_reads * sizeof(fastq_entry));
 
-    char line[1024];
+    char *line = NULL;
+    size_t n = 0;
     size_t lineno = 0;
     size_t entry_cnt = 0;
 
-    while(fgets(line, sizeof line, file) && lineno < num_reads){
+    while(getline(&line, &n, file) && lineno < (num_reads * 4)){
         
+        line[strcspn(line, "\r\n")] = '\0';
         
+        size_t mem_to_allocate = strlen(line) + 1;
+
         if(lineno % 4 == 0){
 
-            strncpy(fastqs[entry_cnt].name, line, MAX_QNAME_LEN);
+            fastqs[entry_cnt].name = malloc(mem_to_allocate);
+            strcpy(fastqs[entry_cnt].name, line);
 
         }else if(lineno % 4 == 1){
 
-            strncpy(fastqs[entry_cnt].seq, line, MAX_READ_LEN);
-            fastqs[entry_cnt].read_len = MAX_READ_LEN;
-
-        }else if(lineno % 4 == 2){
-            
-            lineno++;
-            continue;
-
+            fastqs[entry_cnt].seq = malloc(mem_to_allocate);
+            strcpy(fastqs[entry_cnt].seq, line);
+            fastqs[entry_cnt].read_len = mem_to_allocate - 1;
 
         }else if(lineno % 4 == 3){
 
-            strncpy(fastqs[entry_cnt].qualities, line, MAX_READ_LEN);
+            fastqs[entry_cnt].qualities = malloc(mem_to_allocate);
+            strcpy(fastqs[entry_cnt].qualities, line);
             entry_cnt++;
 
         }
         
         lineno++;
+        n = 0;
 
     }
+
+    /* Free stuff */
+    free(line);
 
     /* Print some stats */
     size_t readlen;
     float *GCconts;
-    GCconts = malloc(lineno * sizeof(float));
+    GCconts = malloc(num_reads * sizeof(float));
 
 
-    for(int i = 0; i<lineno; i++){
+    for(size_t i = 0; i<num_reads; i++){
 
-        float GCcount = 0;
+        size_t GCcount = 0;
 
-        readlen = (float)fastqs[i].read_len;
+        readlen = fastqs[i].read_len;
 
-        for(int j = 0; j < readlen; j++){
+        for(size_t j = 0; j < readlen; j++){
 
-            if(fastqs[i].seq[j] == 'G' | fastqs[i].seq[j] == 'C'){
+            if(toupper(fastqs[i].seq[j]) == 'G' || toupper(fastqs[i].seq[j]) == 'C'){
                 GCcount = GCcount + 1;
             }
 
         }
 
-        GCconts[i] = GCcount / readlen;
+        GCconts[i] = (double)GCcount / (double)readlen;
+
+        free(fastqs[i].seq);
+        free(fastqs[i].name);
+        free(fastqs[i].qualities);
 
     }
 
+    free(fastqs);
 
+    double avg_GC = 0;
 
-    float avg_GC = 0;
+    for(size_t i = 0; i <num_reads; i++){
 
-    for(int i = 0; i <lineno; i++){
-
-        avg_GC = avg_GC + (GCconts[i] / (lineno + 0.0));
+        avg_GC = avg_GC + (GCconts[i] / ((double)num_reads));
 
     }
 
