@@ -14,11 +14,33 @@ hash it to find which entry of the array needs to be
 incremented. 
 */
 
+#define FNV_OFFSET 14695981039346656037UL
+#define FNV_PRIME 1099511628211UL
+
+#define INITIAL_CAPACITY 65536
+
+// Return 64-bit FNV-1a hash for key (NUL-terminated). See description:
+// https://en.wikipedia.org/wiki/Fowler–Noll–Vo_hash_function
+static uint64_t hash_key(const char* key) {
+    uint64_t hash = FNV_OFFSET;
+    for (const char* p = key; *p; p++) {
+        hash ^= (uint64_t)(unsigned char)(*p);
+        hash *= FNV_PRIME;
+    }
+    return hash;
+}
+
 static const char ALPHABET[4] = {'A', 'C', 'G', 'T'};
 
+typedef struct{
+    const char* key;
+    void* value;
+} ht_entry;
+
 typedef struct {
-    size_t count;
-    char *kmer;
+    size_t length;
+    size_t capacity;
+    ht_entry* entries; // Hash slots
 } kmer_ht;
 
 void exit_nomem(void){
@@ -137,7 +159,7 @@ int main(int argc, char *argv[]){
 
     kmer_ht* kcounts = ht_create();
     if(kcounts == NULL){
-        exit_nomem()
+        exit_nomem();
     }
 
 
@@ -151,6 +173,7 @@ int main(int argc, char *argv[]){
         void* value = ht_get(kcounts, kmer);
         if(value != NULL){
 
+            // Increment value
             int* pcount = (int*)value;
             (*pcount)++;
             continue;
@@ -189,10 +212,28 @@ int main(int argc, char *argv[]){
 }
 
 
-
-
 // Create kmer hash table
 kmer_ht* ht_create(void){
+
+    // Allocate space for hash table struct.
+    kmer_ht *new_ht; 
+    new_ht = malloc(sizeof(kmer_ht));
+
+    if(new_ht == NULL){
+        return NULL;
+    }
+
+    new_ht->length = 0;
+    new_ht->capacity = INITIAL_CAPACITY;
+
+    // Allocate (zero'd) space for entry buckets
+    new_ht->entries = calloc(new_ht->capacity, sizeof(ht_entry));
+    if(new_ht == NULL){
+        free(new_ht);
+        return NULL;
+    }
+
+    return new_ht;
 
 }
 
@@ -201,10 +242,46 @@ kmer_ht* ht_create(void){
 // or NULL if key not found
 void* ht_get(kmer_ht* table, const char* key){
 
+    uint64_t hash = hash_key(key);
+
+    // Modulo for nerds
+    size_t index = (size_t)(hash & (uint64_t)(table->capacity - 1));
+
+
+    while(table->entries[index].key != NULL){
+
+        if(strcmp(key, table->entries[index].key) == 0){
+
+            // Found key, return value.
+            return table->entries[index].value;
+
+        }
+
+        index++;
+        if(index >= table->capacity){
+            //Go back to beginning
+            index = 0;
+        }
+
+    }
+
+    return NULL;
+
+
+
 }
 
 // Free memory allocated for hash table, including allocated keys
 void ht_destroy(kmer_ht* table){
+
+    // Free allocated keys
+    for(size_t i = 0; i < table->capacity; i++){
+        free((void*)table->entries[i].key);
+    }
+
+    // Free entries array and table itself
+    free(table->entries);
+    free(table);
 
 }
 
@@ -212,6 +289,59 @@ void ht_destroy(kmer_ht* table){
 // key is copied to newly allocated memory. Return address
 // of copied key, or NULL if out of memory.
 const char* ht_set(kmer_ht* table, const char* key, void* value){
+
+    uint64_t hash = hash_key(key);
+
+    // Modulo for nerds
+    size_t index = (size_t)(hash & (uint64_t)(table->capacity - 1));
+
+    if(table->entries[index].key == '\0'){
+
+        table->entries[index].key = malloc(sizeof(key));
+        strcpy(table->entries[index].key, key);
+        table->entries[index].value = value;
+
+    }else if(strcmp(table->entries[index].key, key) == 0){
+
+        return &table->entries[index].key;
+
+    }else{
+
+        // Find an empty element of entries array
+        size_t init_index = index;
+        index++;
+        while(table->entries[index].key != '\0'){
+
+            index++;
+
+            if(index >= table->capacity){
+                index = 0;
+            }
+
+            // If we have looped through everything, we know the
+            // array is full and needs to be resized
+            if(index == init_index){
+                
+                size_t init_capacity = table->capacity;
+                table->capacity = table->capacity + INITIAL_CAPACITY;
+                void *tmp = realloc(table->entries, table->capacity * sizeof(ht_entry));
+
+                if(tmp == NULL){
+                    return NULL;
+                }
+
+                table->entries = tmp;
+
+                strcpy(table->entries[init_capacity].key, key);
+
+            }
+
+        }
+
+
+
+
+    }
 
 }
 
