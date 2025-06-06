@@ -297,12 +297,16 @@ const char* ht_set(kmer_ht* table, const char* key, void* value){
 
     if(table->entries[index].key == '\0'){
 
+        // Not present; add it
         table->entries[index].key = malloc(sizeof(key));
         strcpy(table->entries[index].key, key);
         table->entries[index].value = value;
 
+        return &table->entries[index].key;
+
     }else if(strcmp(table->entries[index].key, key) == 0){
 
+        // Present; return key
         return &table->entries[index].key;
 
     }else{
@@ -323,7 +327,9 @@ const char* ht_set(kmer_ht* table, const char* key, void* value){
             if(index == init_index){
                 
                 size_t init_capacity = table->capacity;
-                table->capacity = table->capacity + INITIAL_CAPACITY;
+
+                // If capacity is not a power of 2, our fast modulo alternative will break
+                table->capacity = table->capacity * 2;
                 void *tmp = realloc(table->entries, table->capacity * sizeof(ht_entry));
 
                 if(tmp == NULL){
@@ -334,9 +340,13 @@ const char* ht_set(kmer_ht* table, const char* key, void* value){
 
                 strcpy(table->entries[init_capacity].key, key);
 
+                return &table->entries[init_capacity].key;
+
             }
 
         }
+
+        return &table->entries[index].key;
 
 
 
