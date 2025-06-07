@@ -244,10 +244,14 @@ void* ht_get(kmer_ht* table, const char* key){
 
     uint64_t hash = hash_key(key);
 
-    // Modulo for nerds
+    // Modulo for nerds (if capacity is power of 2)
     size_t index = (size_t)(hash & (uint64_t)(table->capacity - 1));
 
 
+    // Loop until we find an empty entry, because that
+    // will let us know that the key does not exist since
+    // we use linear probing when inserting new objects 
+    // into the hash table
     while(table->entries[index].key != NULL){
 
         if(strcmp(key, table->entries[index].key) == 0){
@@ -276,6 +280,8 @@ void ht_destroy(kmer_ht* table){
 
     // Free allocated keys
     for(size_t i = 0; i < table->capacity; i++){
+        // Need to cast because it is declared as a const char*
+        // rather than just a char*
         free((void*)table->entries[i].key);
     }
 
@@ -284,6 +290,80 @@ void ht_destroy(kmer_ht* table){
     free(table);
 
 }
+
+
+// Better ht_set implementation
+const char* ht_set(kmer_ht* table, const char* key, void* value){
+
+
+    // First check if length is 1/2 of capacity
+    // If so, expand the hash table capacity
+    if(table->length + 1 > table->capacity / 2){
+
+        ht_expand(table);
+
+    }
+
+
+    // Then, hash and check where the key needs to be inserted.
+    // If that space is taken, perform linear probing until
+    // an open space is found
+
+    uint64_t hash = hash_key(key);
+    size_t index = (size_t)(hash & (uint64_t)(table->capacity - 1));
+
+    while(table->entries[index].key != NULL){
+        index++;
+
+        if(index >= table->capacity){
+            index = 0;
+        }
+    }
+
+    strcpy(table->entries[index].key, key);
+    table->entries[index].value = 1;
+
+
+}
+
+
+void ht_expand(kmer_ht* table){
+
+    uint64_t hash;
+    size_t index;
+
+    // Double capacity size; inefficient but makes hashing
+    // a lot more efficient because of the trick we can employ
+    size_t old_capacity = table->capacity;
+    table->capacity = table->capacity * 2;
+    ht_entry* new_entries = calloc(table->capacity, sizeof(ht_entry));
+
+    // Rehash everything
+    for(size_t i = 0; i<old_capacity; i++){
+
+        hash = hash_key(table->entries[i].key);
+        index = (size_t)(hash & (uint64_t)(table->capacity - 1));
+
+        while(new_entries[index].key != NULL){
+            index++;
+
+            if(index >= table->capacity){
+                index = 0;
+            }
+        }
+
+        strcpy(new_entries[index].key, table->entries[i].key);
+        new_entries[index].value = table->entries[i].value;
+        free((void*)table->entries[i].key);
+        free(table->entries);
+
+    }
+
+    
+
+}
+
+
 
 // Set item with given key to value. If not present in table,
 // key is copied to newly allocated memory. Return address
