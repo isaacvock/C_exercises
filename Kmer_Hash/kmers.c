@@ -332,11 +332,21 @@ void ht_expand(kmer_ht* table){
     uint64_t hash;
     size_t index;
 
+
+    // Make sure you can double capacity
+    size_t new_capacity = table->capacity*2;
+    if(new_capacity < table->capacity){
+        return false; // Int overflow
+    }
+
     // Double capacity size; inefficient but makes hashing
     // a lot more efficient because of the trick we can employ
     size_t old_capacity = table->capacity;
-    table->capacity = table->capacity * 2;
     ht_entry* new_entries = calloc(table->capacity, sizeof(ht_entry));
+
+    if(new_entries == NULL){
+        return false;
+    }
 
     // Rehash everything
     for(size_t i = 0; i<old_capacity; i++){
@@ -355,11 +365,14 @@ void ht_expand(kmer_ht* table){
         strcpy(new_entries[index].key, table->entries[i].key);
         new_entries[index].value = table->entries[i].value;
         free((void*)table->entries[i].key);
-        free(table->entries);
 
     }
 
-    
+    free(table->entries);
+    table->entries = new_entries;
+    table->capacity = new_capacity;
+
+    return true;
 
 }
 
