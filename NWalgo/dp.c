@@ -26,8 +26,10 @@ void exit_nomem(void){
     exit(1);
 }
 
-int main(int argc, char *argv){
+int* get_score_matrix(const char* s1, const char* s2);
+int find_max3(int a, int b, int c);
 
+int main(int argc, char *argv[]){
 
     /* INPUT PARSING */
 
@@ -46,8 +48,6 @@ int main(int argc, char *argv){
 
     const char *seq1 = argv[1];
     const char *seqcheck = argv[1];
-
-    size_t seqlen = strlen(seq1);
 
     /* Check validity of 1st input sequence */
 
@@ -75,8 +75,6 @@ int main(int argc, char *argv){
     const char *seq2 = argv[2];
     const char *seqcheck2 = argv[2];
 
-    size_t seqlen = strlen(seq2);
-
     /* Check validity of input sequence */
 
     while(*seqcheck2 != '\0'){
@@ -100,15 +98,82 @@ int main(int argc, char *argv){
 
     /* DP */
 
-    alignment* align = get_alignment(seq1, seq2);
+    // Best scores
+    int* scores = get_score_matrix(seq1, seq2);
+
+    // Best alignment
+
+    alignment* alignment = get_best_alignment(scores, seqlen(seq1), seqlen(seq2));
+
+    // Print alignment 
+
+
+    // Free memory
 
 }
 
 
-/* Run N-W algorithm*/
-alignment* get_alignment(char* s1, char* s2){
+/* Walk through score matrix to get alignment */
+alignment* get_best_alignment(int *S, size_t N, size_t M){
 
-    /* Copy strings to iterate along */
+    size_t final_index = (N+1)*(M+1);
+    size_t current_index = final_index;
+
+    /* Alignment object */
+    alignment* alignment = malloc(sizeof(alignment));
+    alignment->align1 = malloc(N+M+1); // Longest possible alignment string
+    alignment->align2 = malloc(N+M+1);
+
+    /* Variables used throughout */
+    size_t diagnoal_above_element;
+    size_t above_element;
+    size_t beside_element;
+    int score_diag;
+    int score_abov;
+    int score_besi;
+
+    while(current_index != 0){
+
+        if(i == 0){
+
+            // Only going to the left at this point
+            current_index = current_index - 1;
+            alignment->align1
+
+        } else if(j == 0){
+
+            // Only going up at this point
+            current_index = current_index - (M+2);
+
+
+        } else{
+
+            // Three possible paths:
+            diagnoal_above_element = current_index - (M+2);
+            above_element = current_index - (M+2);
+            beside_element = current_index - 1;
+
+
+            // Calc scores for each
+            score_diag = S[diagnoal_above_element];
+            score_abov = S[above_element];
+            score_besi = S[beside_element];
+
+            int best_score = find_max3(score_diag, score_abov, score_besi);
+            size_t which_score = which_max3(score_diag, score_abov, score_besi);
+
+
+        }
+
+
+    }
+
+
+
+}
+
+/* Run N-W algorithm*/
+int* get_score_matrix(const char* s1, const char* s2){
 
     /* Dimensions of DP array */
     size_t N = strlen(s1); // Rows
@@ -163,7 +228,7 @@ alignment* get_alignment(char* s1, char* s2){
                 beside_element = element - 1;
 
                 // Is inclusion of both a match?
-                if(strcmp(*s1, *s2) == 0){
+                if(strcmp(&s1[i-1], &s2[j-1]) == 0){
 
                     double_include_score = MATCH_SCORE;
 
@@ -191,6 +256,7 @@ alignment* get_alignment(char* s1, char* s2){
 
     }
 
+    return DP_array;
 
 }
 
@@ -198,17 +264,17 @@ int find_max3(int a, int b, int c){
 
     if(a >= b){
 
-        if(b >= c){
+        if(a >= c){
 
-            return b;
+            return a;
 
         }else{
             return c;
         }
 
-    }else if(a >= c){
+    }else if(b >= c){
 
-        return a;
+        return b;
 
     }else{
 
