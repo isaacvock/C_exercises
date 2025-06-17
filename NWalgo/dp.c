@@ -28,6 +28,8 @@ void exit_nomem(void){
 
 int* get_score_matrix(const char* s1, const char* s2);
 int find_max3(int a, int b, int c);
+size_t which_max3(int a, int b, int c);
+alignment* get_best_alignment(int *S, const char* s1, const char* s2);
 
 int main(int argc, char *argv[]){
 
@@ -103,18 +105,33 @@ int main(int argc, char *argv[]){
 
     // Best alignment
 
-    alignment* alignment = get_best_alignment(scores, seqlen(seq1), seqlen(seq2));
+    alignment* alignment = get_best_alignment(scores, seq1, seq2);
 
     // Print alignment 
+    for(const char *p = alignment->align1; *p; ++p){
+        putchar(*p);
+    }
+    putchar('\n');
+    for(const char *p = alignment->align2; *p; ++p){
+        putchar(*p);
+    }
+    putchar('\n');
 
 
     // Free memory
+    free(alignment->align1);
+    free(alignment->align2);
+    free(scores);
 
 }
 
 
 /* Walk through score matrix to get alignment */
-alignment* get_best_alignment(int *S, size_t N, size_t M){
+alignment* get_best_alignment(int *S, const char* s1, const char* s2){
+
+    /* Dimensions of DP array */
+    size_t N = strlen(s1); // Rows
+    size_t M = strlen(s2); // Columns
 
     size_t final_index = (N+1)*(M+1);
     size_t current_index = final_index;
@@ -125,25 +142,42 @@ alignment* get_best_alignment(int *S, size_t N, size_t M){
     alignment->align2 = malloc(N+M+1);
 
     /* Variables used throughout */
+
+    // Squares we can travel to
     size_t diagnoal_above_element;
     size_t above_element;
     size_t beside_element;
+    
+    // Scores in squares we can travel to
     int score_diag;
     int score_abov;
     int score_besi;
 
+    // Where we are in the matrix
+    size_t current_row = N;
+    size_t current_col = M;
+
+    size_t which_score; // Which square do we go to next (highest score)?
+    size_t len = 0; // Current alignment length
+
     while(current_index != 0){
 
-        if(i == 0){
+        if(current_row == 0){
 
             // Only going to the left at this point
             current_index = current_index - 1;
-            alignment->align1
+            alignment->align1[len] = '-';
+            alignment->align2[len] = s2[current_col - 1];
+            current_col--;
 
-        } else if(j == 0){
+
+        } else if(current_col == 0){
 
             // Only going up at this point
             current_index = current_index - (M+2);
+            alignment->align1[len] = s1[current_row - 1];
+            alignment->align2[len] = '-';
+            current_row--;
 
 
         } else{
@@ -159,15 +193,51 @@ alignment* get_best_alignment(int *S, size_t N, size_t M){
             score_abov = S[above_element];
             score_besi = S[beside_element];
 
-            int best_score = find_max3(score_diag, score_abov, score_besi);
-            size_t which_score = which_max3(score_diag, score_abov, score_besi);
+            which_score = which_max3(score_diag, score_abov, score_besi);
+
+            if(which_score == 0){
+
+                // Go to diagonal square
+                // Include next nt of both strings; seq1[current_row - 1], seq2[current_col - 1]
+                alignment->align1[len] = s1[current_row - 1];
+                alignment->align2[len] = s2[current_col - 1];
+                current_row--;
+                current_col--;
+                current_index = diagnoal_above_element;
+
+
+            }else if(which_score == 1){
+                // Go to square above
+                // Include next nt of seq1, and gap
+                alignment->align1[len] = s1[current_row - 1];
+                alignment->align2[len] = '-';
+                current_row--;
+                current_index = above_element;
+
+            }else{
+
+                // Go to square to the left
+                // Include next nt of seq2, and gap
+                alignment->align1[len] = '-';
+                alignment->align2[len] = s2[current_col - 1];
+                current_col--;
+                current_index = beside_element;
+
+            }
 
 
         }
 
+        len++;
+
 
     }
 
+    // NULL-terminate
+    alignment->align1[len] = '\0';
+    alignment->align2[len] = '\0';
+
+    return alignment;
 
 
 }
@@ -279,6 +349,30 @@ int find_max3(int a, int b, int c){
     }else{
 
         return c;
+    }
+
+}
+
+
+size_t which_max3(int a, int b, int c){
+
+    if(a >= b){
+
+        if(a >= c){
+
+            return 0;
+
+        }else{
+            return 2;
+        }
+
+    }else if(b >= c){
+
+        return 1;
+
+    }else{
+
+        return 2;
     }
 
 }
