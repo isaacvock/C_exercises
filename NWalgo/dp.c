@@ -133,7 +133,7 @@ alignment* get_best_alignment(int *S, const char* s1, const char* s2){
     size_t N = strlen(s1); // Rows
     size_t M = strlen(s2); // Columns
 
-    size_t final_index = (N+1)*(M+1);
+    size_t final_index = ((N+1)*(M+1)) - 1;
     size_t current_index = final_index;
 
     /* Alignment object */
@@ -184,7 +184,7 @@ alignment* get_best_alignment(int *S, const char* s1, const char* s2){
 
             // Three possible paths:
             diagnoal_above_element = current_index - (M+2);
-            above_element = current_index - (M+2);
+            above_element = current_index - (M+1);
             beside_element = current_index - 1;
 
 
@@ -294,11 +294,11 @@ int* get_score_matrix(const char* s1, const char* s2){
 
                 // Three possible paths:
                 diagnoal_above_element = element - (M+2);
-                above_element = element - (M+2);
+                above_element = element - (M+1);
                 beside_element = element - 1;
 
                 // Is inclusion of both a match?
-                if(strcmp(&s1[i-1], &s2[j-1]) == 0){
+                if(s1[i-1] == s2[j-1]){
 
                     double_include_score = MATCH_SCORE;
 
