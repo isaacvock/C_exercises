@@ -28,7 +28,7 @@ void exit_nomem(void){
 
 int* get_score_matrix(const char* s1, const char* s2);
 int find_max3(int a, int b, int c);
-size_t which_max3(int a, int b, int c);
+size_t which_max2(int a, int b);
 alignment* get_best_alignment(int *S, const char* s1, const char* s2);
 
 int main(int argc, char *argv[]){
@@ -149,7 +149,6 @@ alignment* get_best_alignment(int *S, const char* s1, const char* s2){
     size_t beside_element;
     
     // Scores in squares we can travel to
-    int score_diag;
     int score_abov;
     int score_besi;
 
@@ -174,7 +173,7 @@ alignment* get_best_alignment(int *S, const char* s1, const char* s2){
         } else if(current_col == 0){
 
             // Only going up at this point
-            current_index = current_index - (M+2);
+            current_index = current_index - (M+1);
             alignment->align1[len] = s1[current_row - 1];
             alignment->align2[len] = '-';
             current_row--;
@@ -188,14 +187,7 @@ alignment* get_best_alignment(int *S, const char* s1, const char* s2){
             beside_element = current_index - 1;
 
 
-            // Calc scores for each
-            score_diag = S[diagnoal_above_element];
-            score_abov = S[above_element];
-            score_besi = S[beside_element];
-
-            which_score = which_max3(score_diag, score_abov, score_besi);
-
-            if(which_score == 0){
+            if(s1[current_row - 1] == s2[current_col - 1]){
 
                 // Go to diagonal square
                 // Include next nt of both strings; seq1[current_row - 1], seq2[current_col - 1]
@@ -206,22 +198,32 @@ alignment* get_best_alignment(int *S, const char* s1, const char* s2){
                 current_index = diagnoal_above_element;
 
 
-            }else if(which_score == 1){
-                // Go to square above
-                // Include next nt of seq1, and gap
-                alignment->align1[len] = s1[current_row - 1];
-                alignment->align2[len] = '-';
-                current_row--;
-                current_index = above_element;
-
             }else{
 
-                // Go to square to the left
-                // Include next nt of seq2, and gap
-                alignment->align1[len] = '-';
-                alignment->align2[len] = s2[current_col - 1];
-                current_col--;
-                current_index = beside_element;
+                // Choose the best gap score
+                score_abov = S[above_element];
+                score_besi = S[beside_element];
+
+                which_score = which_max2(score_abov, score_besi);
+
+                if(which_score == 0){
+                    // Go to square above
+                    // Include next nt of seq1, and gap
+                    alignment->align1[len] = s1[current_row - 1];
+                    alignment->align2[len] = '-';
+                    current_row--;
+                    current_index = above_element;
+
+                }else{
+
+                    // Go to square to the left
+                    // Include next nt of seq2, and gap
+                    alignment->align1[len] = '-';
+                    alignment->align2[len] = s2[current_col - 1];
+                    current_col--;
+                    current_index = beside_element;
+
+                }
 
             }
 
@@ -354,25 +356,15 @@ int find_max3(int a, int b, int c){
 }
 
 
-size_t which_max3(int a, int b, int c){
+size_t which_max2(int a, int b){
 
     if(a >= b){
 
-        if(a >= c){
-
-            return 0;
-
-        }else{
-            return 2;
-        }
-
-    }else if(b >= c){
-
-        return 1;
+        return 0;
 
     }else{
 
-        return 2;
-    }
+        return 1;
 
+    }
 }
