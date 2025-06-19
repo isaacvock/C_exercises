@@ -8,10 +8,11 @@
 #include <errno.h>
 #include <stdio.h>
 #include <math.h>
+#include <unistd.h>
 
-#define MATCH_SCORE 2
-#define MISMATCH_SCORE -1
-#define GAP_SCORE -2
+#define MATCH_SCORE_DEFAULT 2
+#define MISMATCH_SCORE_DEFAULT -1
+#define GAP_SCORE_DEFAULT -2
 
 static const char ALPHABET[4] = {'A', 'C', 'G', 'T'};
 
@@ -26,29 +27,49 @@ void exit_nomem(void){
     exit(1);
 }
 
-int* get_score_matrix(const char* s1, const char* s2);
+static void print_usage_and_exit(const char *progname){
+    fprintf(stderr,
+        "Usage: %s [-m MATCH] [-x MISMATCH] [-g GAP] <seq1> <seq2>\n"
+        "\n"
+        "  -m INT   match score    (default  2)\n"
+        "  -x INT   mismatch score (default -1)\n"
+        "  -g INT   gap penalty    (default -2)\n"
+        "\n"
+        "Example:   %s -m 3 -x -4 g -6 ACTG ACGT\n",
+        progname, progname);
+
+    exit(EXIT_FAILURE);
+}
+
+
+int* get_score_matrix(const char* s1, const char* s2, int match, int mismatch, int gap);
 int find_max3(int a, int b, int c);
 size_t which_max2(int a, int b);
-alignment* get_best_alignment(int *S, const char* s1, const char* s2);
+alignment* get_best_alignment(int *S, const char* s1, const char* s2, int mismatch);
+
 
 int main(int argc, char *argv[]){
 
     /* INPUT PARSING */
 
-    /* Make sure correct number of arguments */
-    if (argc != 3){
-        fprintf(stderr,
-        "Usage: %s <read sequence> <k> \n"
-        " <sequence 1> : a sequence of As, Gs, Ts, and Cs\n"
-        " <sequence 2> : a sequence of As, Gs, Ts, and Cs\n",
-        argv[0]
-        );
-        return EXIT_FAILURE;
+    /* Scoring function */
+    int match_score = MATCH_SCORE_DEFAULT;
+    int mismatch_score = MISMATCH_SCORE_DEFAULT;
+    int gap_score = GAP_SCORE_DEFAULT;
+
+    int c;
+    while((c = getopt(argc, argv, "m:x:g:")) != -1){
+        switch(c) {
+            case 'm': match_score = (int)strtol(optarg, NULL, 10); break;
+            case 'x': mismatch_score = (int)strtol(optarg, NULL, 10); break;
+            case 'g': gap_score = (int)strtol(optarg, NULL, 10); break;
+            default : print_usage_and_exit(argv[0]);
+        }
     }
 
     /* Parse 1st input sequence */
 
-    const char *seq1 = argv[1];
+    const char *seq1 = argv[optind];
 
     /* Check validity of 1st input sequence */
 
@@ -61,7 +82,7 @@ int main(int argc, char *argv[]){
 
     /* Parse 2nd input sequence */
 
-    const char *seq2 = argv[2];
+    const char *seq2 = argv[optind+1];
 
     /* Check validity of input sequence */
 
@@ -75,11 +96,11 @@ int main(int argc, char *argv[]){
     /* DP */
 
     // Best scores
-    int* scores = get_score_matrix(seq1, seq2);
+    int* scores = get_score_matrix(seq1, seq2, match_score, mismatch_score, gap_score);
 
     // Best alignment
 
-    alignment* alignment = get_best_alignment(scores, seq1, seq2);
+    alignment* alignment = get_best_alignment(scores, seq1, seq2, mismatch_score);
 
     // Print alignment 
     for(const char *p = alignment->align1; *p; ++p){
@@ -101,7 +122,7 @@ int main(int argc, char *argv[]){
 
 
 /* Walk through score matrix to get alignment */
-alignment* get_best_alignment(int *S, const char* s1, const char* s2){
+alignment* get_best_alignment(int *S, const char* s1, const char* s2, int mismatch){
 
     /* Dimensions of DP array */
     size_t N = strlen(s1); // Rows
@@ -170,7 +191,7 @@ alignment* get_best_alignment(int *S, const char* s1, const char* s2){
             score_diag = S[diagnoal_above_element];
 
 
-            if( (s1[current_row - 1] == s2[current_col - 1]) || (score_diag + MISMATCH_SCORE == current_score) ){
+            if( (s1[current_row - 1] == s2[current_col - 1]) || (score_diag + mismatch == current_score) ){
 
                 // Go to diagonal square
                 // Include next nt of both strings; seq1[current_row - 1], seq2[current_col - 1]
@@ -225,7 +246,7 @@ alignment* get_best_alignment(int *S, const char* s1, const char* s2){
 }
 
 /* Run N-W algorithm*/
-int* get_score_matrix(const char* s1, const char* s2){
+int* get_score_matrix(const char* s1, const char* s2, int match, int mismatch, int gap){
 
     /* Dimensions of DP array */
     size_t N = strlen(s1); // Rows
@@ -264,13 +285,13 @@ int* get_score_matrix(const char* s1, const char* s2){
                 // Only gap penalities at this point
 
                 last_col = element-1;
-                DP_array[element] = DP_array[last_col] + GAP_SCORE;
+                DP_array[element] = DP_array[last_col] + gap;
 
             } else if(j == 0){
                 // Only gap penalties at this point
 
                 last_row = element-(M+1);
-                DP_array[element] = DP_array[last_row] + GAP_SCORE;
+                DP_array[element] = DP_array[last_row] + gap;
 
             } else{
 
@@ -282,18 +303,18 @@ int* get_score_matrix(const char* s1, const char* s2){
                 // Is inclusion of both a match?
                 if(s1[i-1] == s2[j-1]){
 
-                    double_include_score = MATCH_SCORE;
+                    double_include_score = match;
 
                 }else{
 
-                    double_include_score = MISMATCH_SCORE;
+                    double_include_score = mismatch;
 
                 }
 
                 // Calc scores for each
                 score_diag = DP_array[diagnoal_above_element] + double_include_score;
-                score_abov = DP_array[above_element] + GAP_SCORE;
-                score_besi = DP_array[beside_element] + GAP_SCORE;
+                score_abov = DP_array[above_element] + gap;
+                score_besi = DP_array[beside_element] + gap;
 
                 DP_array[element] = find_max3(score_diag, score_abov, score_besi);
 
