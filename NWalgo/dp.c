@@ -151,6 +151,8 @@ alignment* get_best_alignment(int *S, const char* s1, const char* s2){
     // Scores in squares we can travel to
     int score_abov;
     int score_besi;
+    int score_diag;
+    int current_score;
 
     // Where we are in the matrix
     size_t current_row = N;
@@ -186,8 +188,15 @@ alignment* get_best_alignment(int *S, const char* s1, const char* s2){
             above_element = current_index - (M+1);
             beside_element = current_index - 1;
 
+            // Choose the score that equals the current element
+            current_score = S[current_index];
 
-            if(s1[current_row - 1] == s2[current_col - 1]){
+            score_abov = S[above_element];
+            score_besi = S[beside_element];
+            score_diag = S[diagnoal_above_element];
+
+
+            if( (s1[current_row - 1] == s2[current_col - 1]) || (score_diag + MISMATCH_SCORE == current_score) ){
 
                 // Go to diagonal square
                 // Include next nt of both strings; seq1[current_row - 1], seq2[current_col - 1]
@@ -200,9 +209,6 @@ alignment* get_best_alignment(int *S, const char* s1, const char* s2){
 
             }else{
 
-                // Choose the best gap score
-                score_abov = S[above_element];
-                score_besi = S[beside_element];
 
                 which_score = which_max2(score_abov, score_besi);
 
