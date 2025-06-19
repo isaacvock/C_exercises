@@ -39,8 +39,8 @@ int main(int argc, char *argv[]){
     if (argc != 3){
         fprintf(stderr,
         "Usage: %s <read sequence> <k> \n"
-        " <read sequence> : a sequence of As, Gs, Ts, and Cs\n"
-        " <k> : k-mer length to search for\n",
+        " <sequence 1> : a sequence of As, Gs, Ts, and Cs\n"
+        " <sequence 2> : a sequence of As, Gs, Ts, and Cs\n",
         argv[0]
         );
         return EXIT_FAILURE;
@@ -49,53 +49,27 @@ int main(int argc, char *argv[]){
     /* Parse 1st input sequence */
 
     const char *seq1 = argv[1];
-    const char *seqcheck = argv[1];
 
     /* Check validity of 1st input sequence */
 
-    while(*seqcheck != '\0'){
-
-        for(size_t i = 0; i < 4; i++){
-
-            if(ALPHABET[i] == *seqcheck){
-                seqcheck++;
-                break;
-            }else if(i == 3){
-
-                fprintf(stderr,
-                "Error: <read sequence> must be a sequence of As, Gs, Ts, and Cs\n");
-                return EXIT_FAILURE;
-
-            }
-
-        }
-
+    size_t match1 = strspn(seq1, ALPHABET);
+    if(match1 != strlen(seq1)){
+        fprintf(stderr,
+        "Error: <sequence 1> must be a sequence of As, Gs, Ts, and Cs\n");
+        return EXIT_FAILURE;
     }
 
     /* Parse 2nd input sequence */
 
     const char *seq2 = argv[2];
-    const char *seqcheck2 = argv[2];
 
     /* Check validity of input sequence */
 
-    while(*seqcheck2 != '\0'){
-
-        for(size_t i = 0; i < 4; i++){
-
-            if(ALPHABET[i] == *seqcheck2){
-                seqcheck2++;
-                break;
-            }else if(i == 3){
-
-                fprintf(stderr,
-                "Error: <read sequence> must be a sequence of As, Gs, Ts, and Cs\n");
-                return EXIT_FAILURE;
-
-            }
-
-        }
-
+    size_t match2 = strspn(seq2, ALPHABET);
+    if(match2 != strlen(seq2)){
+        fprintf(stderr,
+        "Error: <sequence 2> must be a sequence of As, Gs, Ts, and Cs\n");
+        return EXIT_FAILURE;
     }
 
     /* DP */
