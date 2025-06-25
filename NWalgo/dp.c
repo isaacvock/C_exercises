@@ -3,12 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <errno.h>
 #include <stdio.h>
 #include <math.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #define MATCH_SCORE_DEFAULT 2
 #define MISMATCH_SCORE_DEFAULT -1
@@ -25,6 +25,14 @@ typedef struct{
 void exit_nomem(void){
     fprintf(stderr, "out of memory\n");
     exit(1);
+}
+
+void alignment_destroy(alignment *a){
+
+    free(a->align1);
+    free(a->align2);
+    free(a);
+
 }
 
 static void print_usage_and_exit(const char *progname){
@@ -114,8 +122,7 @@ int main(int argc, char *argv[]){
 
 
     // Free memory
-    free(alignment->align1);
-    free(alignment->align2);
+    alignment_destroy(alignment);
     free(scores);
 
 }
@@ -133,8 +140,21 @@ alignment* get_best_alignment(int *S, const char* s1, const char* s2, int mismat
 
     /* Alignment object */
     alignment* alignment = malloc(sizeof(alignment));
+
+    if(!alignment){
+        exit_nomem();
+    }
+
     alignment->align1 = malloc(N+M+1); // Longest possible alignment string
     alignment->align2 = malloc(N+M+1);
+
+    if(!alignment->align1){
+        exit_nomem();
+    }
+
+    if(!alignment->align2){
+        exit_nomem();
+    }
 
     /* Variables used throughout */
 

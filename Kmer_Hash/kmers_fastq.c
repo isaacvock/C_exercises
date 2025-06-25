@@ -41,8 +41,6 @@ static const char ALPHABET[5] = {'A', 'C', 'G', 'T', 'N'};
 int main(int argc, char *argv[]){
 
 
-    
-
 
     /* Make sure correct number of arguments */
     if (argc != 3){
