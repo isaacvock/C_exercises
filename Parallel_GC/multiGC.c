@@ -74,34 +74,45 @@ int main(int argc, char *argv[]){
     size_t lineno = 0;
     size_t entry_cnt = 0;
 
-    while(getline(&line, &n, file) && lineno < (num_reads * 4)){
+    for(int i = 0; i < (num_reads*4); i++){
+
+        if(getline(&line, &n, file)){
+
+            line[strcspn(line, "\r\n")] = '\0';
         
-        line[strcspn(line, "\r\n")] = '\0';
-        
-        size_t mem_to_allocate = strlen(line) + 1;
+            size_t mem_to_allocate = strlen(line) + 1;
 
-        if(lineno % 4 == 0){
+            if(lineno % 4 == 0){
 
-            fastqs[entry_cnt].name = malloc(mem_to_allocate);
-            strcpy(fastqs[entry_cnt].name, line);
+                fastqs[entry_cnt].name = malloc(mem_to_allocate);
+                strcpy(fastqs[entry_cnt].name, line);
 
-        }else if(lineno % 4 == 1){
+            }else if(lineno % 4 == 1){
 
-            fastqs[entry_cnt].seq = malloc(mem_to_allocate);
-            strcpy(fastqs[entry_cnt].seq, line);
-            fastqs[entry_cnt].read_len = mem_to_allocate - 1;
+                fastqs[entry_cnt].seq = malloc(mem_to_allocate);
+                strcpy(fastqs[entry_cnt].seq, line);
+                fastqs[entry_cnt].read_len = mem_to_allocate - 1;
 
-        }else if(lineno % 4 == 3){
+            }else if(lineno % 4 == 3){
 
-            fastqs[entry_cnt].qualities = malloc(mem_to_allocate);
-            strcpy(fastqs[entry_cnt].qualities, line);
-            entry_cnt++;
+                fastqs[entry_cnt].qualities = malloc(mem_to_allocate);
+                strcpy(fastqs[entry_cnt].qualities, line);
+                entry_cnt++;
+
+            }
+            
+            lineno++;
+            n = 0;
 
         }
-        
-        lineno++;
-        n = 0;
 
+
+
+    }
+
+    /* There were less than the requested number of reads*/
+    if(entry_cnt < num_reads){
+        num_reads = entry_cnt;
     }
 
     /* Free stuff */
