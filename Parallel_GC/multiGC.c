@@ -120,11 +120,14 @@ int main(int argc, char *argv[]){
 
     /* Print some stats */
     size_t readlen;
-    float *GCconts;
-    GCconts = malloc(num_reads * sizeof(float));
+    //float *GCconts;
+    //GCconts = malloc(num_reads * sizeof(float));
 
+    double avg_GC = 0;
+    double GCcont_track = 0;
 
-    #pragma omp parallel for
+    #pragma omp parallel for    \
+     reduction(+:avg_GC)
     for(size_t i = 0; i<num_reads; i++){
 
         size_t GCcount = 0;
@@ -139,17 +142,24 @@ int main(int argc, char *argv[]){
 
         }
 
-        GCconts[i] = (double)GCcount / (double)readlen;
+        //GCconts[i] = (double)GCcount / (double)readlen;
 
+        GCcont_track = ((double)GCcount / (double)readlen)/((double)num_reads);
+
+        avg_GC += GCcont_track;
+
+        //free(fastqs[i].seq);
+        //free(fastqs[i].name);
+        //free(fastqs[i].qualities);
 
     }
 
+    //free(fastqs);
 
-    double avg_GC = 0;
 
     for(size_t i = 0; i <num_reads; i++){
 
-        avg_GC = avg_GC + (GCconts[i] / ((double)num_reads));
+        //avg_GC = avg_GC + (GCconts[i] / ((double)num_reads));
         free(fastqs[i].seq);
         free(fastqs[i].name);
         free(fastqs[i].qualities);

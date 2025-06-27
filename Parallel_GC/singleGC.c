@@ -18,7 +18,7 @@ typedef struct{
 
 int main(int argc, char *argv[]){
 
-    clock_t start_time = clock();
+    double start_time = omp_get_wtime();
 
     /* Make sure correct number of arguments */
     if (argc != 3){
@@ -145,10 +145,9 @@ int main(int argc, char *argv[]){
 
     }
 
-    clock_t end_time = clock();
+    double end_time = omp_get_wtime();
 
     printf("Average GC fraction is %.4f\n", avg_GC);
 
-    double run_time = (double)(end_time - start_time)/CLOCKS_PER_SEC;
-    printf("Run time is: %f\n", run_time);
+    printf("Run time is: %.3fs\n", end_time - start_time);
 }
