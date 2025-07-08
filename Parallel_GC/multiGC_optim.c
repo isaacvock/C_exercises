@@ -62,42 +62,31 @@ int main(int argc, char *argv[]){
     size_t lineno = 0;
     size_t entry_cnt = 0;
 
-    double avg_GC;
-    double GCcont_track = 0;
+    double avg_GC = 0.0;
     size_t GCcount = 0;
     size_t readlen;
-    double total_GC = 0;
 
-    #pragma omp parallel for    \
-     reduction(+:total_GC)
-    for(int i = 0; i < (num_reads*4); i++){
+    char **seq = malloc(num_reads * sizeof *seq);
+    size_t *len = malloc(num_reads * sizeof *len);
 
-        if(getline(&line, &n, file)){
+    ssize_t l;
 
-            line[strcspn(line, "\r\n")] = '\0';
+    for(size_t i = 0; i < num_reads; i++){
 
-            readlen = strlen(line);
-            
-            if(lineno % 4 == 1){
+        getline(&line, &n, file); // Read name
 
-                for(size_t j = 0; j < readlen; j++){
+        l = getline(&line, &n, file); // Sequence
 
-                    char current_char = toupper(line[j]);
-                    if(current_char == 'g' || current_char == 'c' || current_char == 'G' || current_char == 'C'){
-                        GCcount = GCcount + 1;
-                    }
+        line[strcspn(line, "\r\n")] = '\0';
 
-                }
+        seq[i] = strdup(line);
+        len[i] = l - 1;
 
-                GCcont_track = ((double)GCcount / (double)readlen);
-                total_GC += GCcont_track;
+        entry_cnt++;
+        lineno++;
 
-            }
-
-            entry_cnt++;
-            lineno++;
-
-        }
+        getline(&line, &n, file); // '+'
+        getline(&line, &n, file); // Qualities
 
     }
 
@@ -106,7 +95,23 @@ int main(int argc, char *argv[]){
         num_reads = entry_cnt;
     }
 
-    avg_GC = total_GC / num_reads;
+    /* GC counting */
+    #pragma omp parallel for reduction(+:avg_GC)
+    for(size_t i = 0; i < num_reads; i++){
+
+        GCcount = 0;
+        readlen = len[i];
+        for(size_t j = 0; j < readlen; j++){
+
+            if(seq[i][j] == 'G' || seq[i][j] == 'C' || seq[i][j] == 'g' || seq[i][j] == 'c'){
+                GCcount++;
+            }
+
+        }
+
+        avg_GC += ((double)GCcount / (double)readlen)/((double)num_reads);
+
+    }
 
     double end_time = omp_get_wtime();
 

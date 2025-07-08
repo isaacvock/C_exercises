@@ -8,14 +8,6 @@
 #include <time.h>
 
 
-typedef struct{
-    size_t read_len;
-    char *seq;
-    char *qualities;
-    char *name;
-} fastq_entry;
-
-
 int main(int argc, char *argv[]){
 
     double start_time = omp_get_wtime();
@@ -65,83 +57,59 @@ int main(int argc, char *argv[]){
 
     /* Parse fastq entries */
 
-    fastq_entry *fastqs;
-
-    fastqs = malloc(num_reads * sizeof(fastq_entry));
-
     char *line = NULL;
     size_t n = 0;
     size_t lineno = 0;
     size_t entry_cnt = 0;
 
-    while(getline(&line, &n, file) && lineno < (num_reads * 4)){
-        
+    double avg_GC = 0.0;
+    size_t GCcount = 0;
+    size_t readlen;
+
+    char **seq = malloc(num_reads * sizeof *seq);
+    size_t *len = malloc(num_reads * sizeof *len);
+
+    ssize_t l;
+
+    for(size_t i = 0; i < num_reads; i++){
+
+        getline(&line, &n, file); // Read name
+
+        l = getline(&line, &n, file); // Sequence
+
         line[strcspn(line, "\r\n")] = '\0';
-        
-        size_t mem_to_allocate = strlen(line) + 1;
 
-        if(lineno % 4 == 0){
+        seq[i] = strdup(line);
+        len[i] = l - 1;
 
-            fastqs[entry_cnt].name = malloc(mem_to_allocate);
-            strcpy(fastqs[entry_cnt].name, line);
-
-        }else if(lineno % 4 == 1){
-
-            fastqs[entry_cnt].seq = malloc(mem_to_allocate);
-            strcpy(fastqs[entry_cnt].seq, line);
-            fastqs[entry_cnt].read_len = mem_to_allocate - 1;
-
-        }else if(lineno % 4 == 3){
-
-            fastqs[entry_cnt].qualities = malloc(mem_to_allocate);
-            strcpy(fastqs[entry_cnt].qualities, line);
-            entry_cnt++;
-
-        }
-        
+        entry_cnt++;
         lineno++;
-        n = 0;
+
+        getline(&line, &n, file); // '+'
+        getline(&line, &n, file); // Qualities
 
     }
 
-    /* Free stuff */
-    free(line);
+    /* There were less than the requested number of reads*/
+    if(entry_cnt < num_reads){
+        num_reads = entry_cnt;
+    }
 
-    /* Print some stats */
-    size_t readlen;
-    float *GCconts;
-    GCconts = malloc(num_reads * sizeof(float));
+    /* GC counting */
+    #pragma omp parallel for reduction(+:avg_GC)
+    for(size_t i = 0; i < num_reads; i++){
 
-
-    for(size_t i = 0; i<num_reads; i++){
-
-        size_t GCcount = 0;
-
-        readlen = fastqs[i].read_len;
-
+        GCcount = 0;
+        readlen = len[i];
         for(size_t j = 0; j < readlen; j++){
 
-            if(toupper(fastqs[i].seq[j]) == 'G' || toupper(fastqs[i].seq[j]) == 'C'){
-                GCcount = GCcount + 1;
+            if(seq[i][j] == 'G' || seq[i][j] == 'C' || seq[i][j] == 'g' || seq[i][j] == 'c'){
+                GCcount++;
             }
 
         }
 
-        GCconts[i] = (double)GCcount / (double)readlen;
-
-        free(fastqs[i].seq);
-        free(fastqs[i].name);
-        free(fastqs[i].qualities);
-
-    }
-
-    free(fastqs);
-
-    double avg_GC = 0;
-
-    for(size_t i = 0; i <num_reads; i++){
-
-        avg_GC = avg_GC + (GCconts[i] / ((double)num_reads));
+        avg_GC += ((double)GCcount / (double)readlen)/((double)num_reads);
 
     }
 
@@ -149,5 +117,5 @@ int main(int argc, char *argv[]){
 
     printf("Average GC fraction is %.4f\n", avg_GC);
 
-    printf("Run time is: %.3fs\n", end_time - start_time);
+    printf("Run time is: %.3f s\n", end_time - start_time);
 }
